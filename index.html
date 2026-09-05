@@ -1386,7 +1386,7 @@
       <a-light type="directional" position="3 5 2" intensity="0.55"></a-light>
 
       <!-- ==================== PLAYER RIG + FACE HUD ==================== -->
-      <a-entity id="rig" movement-controls="speed: 0.18" pad-move position="0 0 2">
+      <a-entity id="rig" movement-controls="speed: 0.18; controls: keyboard, gamepad, hmd" pad-move position="0 0 2">
         <a-entity camera position="0 1.6 0" look-controls>
           <a-entity id="hud" position="0 -0.30 -0.85" rotation="-12 0 0">
             <a-plane id="hud-border" width="0.56" height="0.245" color="#2a6f85" opacity="0.9"></a-plane>
@@ -1448,20 +1448,20 @@
          buttons and tools exactly as before - these arrows never select.
          Hidden on laptop and inside a VR headset session.               -->
     <div id="move-pad" style="
-        display:none; position:fixed; right:18px; bottom:18px;
-        width:186px; height:186px; z-index:9999;
+        display:none; position:fixed; right:12px; bottom:12px;
+        width:126px; height:126px; z-index:9999;
         touch-action:none; user-select:none; -webkit-user-select:none;">
-      <button class="mv-btn" data-dir="fwd"   style="left:62px; top:0;">&#9650;</button>
-      <button class="mv-btn" data-dir="left"  style="left:0;    top:62px;">&#9664;</button>
-      <button class="mv-btn" data-dir="right" style="left:124px;top:62px;">&#9654;</button>
-      <button class="mv-btn" data-dir="back"  style="left:62px; top:124px;">&#9660;</button>
+      <button class="mv-btn" data-dir="fwd"   style="left:42px; top:0;">&#9650;</button>
+      <button class="mv-btn" data-dir="left"  style="left:0;    top:42px;">&#9664;</button>
+      <button class="mv-btn" data-dir="right" style="left:84px; top:42px;">&#9654;</button>
+      <button class="mv-btn" data-dir="back"  style="left:42px; top:84px;">&#9660;</button>
     </div>
     <style>
       #move-pad .mv-btn {
-        position:absolute; width:62px; height:62px; padding:0;
-        border-radius:14px; border:2px solid rgba(42,111,133,0.95);
-        background:rgba(11,28,34,0.62); color:#7fe9ff;
-        font-size:24px; line-height:58px; text-align:center;
+        position:absolute; width:42px; height:42px; padding:0;
+        border-radius:10px; border:1px solid rgba(42,111,133,0.9);
+        background:rgba(11,28,34,0.55); color:#7fe9ff;
+        font-size:15px; line-height:40px; text-align:center;
         touch-action:none; -webkit-tap-highlight-color:transparent;
       }
       #move-pad .mv-btn.pressed {
