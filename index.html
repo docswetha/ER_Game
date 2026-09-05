@@ -1386,7 +1386,7 @@
       <a-light type="directional" position="3 5 2" intensity="0.55"></a-light>
 
       <!-- ==================== PLAYER RIG + FACE HUD ==================== -->
-      <a-entity id="rig" movement-controls="speed: 0.18" joystick-move position="0 0 2">
+      <a-entity id="rig" movement-controls="speed: 0.18" pad-move position="0 0 2">
         <a-entity camera position="0 1.6 0" look-controls>
           <a-entity id="hud" position="0 -0.30 -0.85" rotation="-12 0 0">
             <a-plane id="hud-border" width="0.56" height="0.245" color="#2a6f85" opacity="0.9"></a-plane>
@@ -1428,113 +1428,130 @@
         document.querySelector('a-scene').addEventListener('enter-vr', () => {
           const gc = document.querySelector('#gaze-cursor');
           if (gc) gc.setAttribute('visible', 'false');
-          setJoystickVisible(false);
+          setPadVisible(false);
         });
         document.querySelector('a-scene').addEventListener('exit-vr', () => {
           const gc = document.querySelector('#gaze-cursor');
           if (gc) gc.setAttribute('visible', 'true');
-          setJoystickVisible(isTouchDevice());
+          setPadVisible(isTouchDevice());
         });
 
-        /* ================= MOBILE VIRTUAL JOYSTICK =================
-           Drag the pad to walk in any direction. "Forward" follows where the
-           camera is looking, so gyroscope turning and joystick walking work
-           together. Touch devices only.                                  */
-        function isTouchDevice() {
-          return ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-        }
-        function setJoystickVisible(v) {
-          const z = document.getElementById('joy-zone');
-          const h = document.getElementById('joy-hint');
-          if (z) z.style.display = v ? 'block' : 'none';
-          if (h) h.style.display = v ? 'block' : 'none';
-        }
-
-        const JOY = { active: false, dx: 0, dy: 0, id: null };
-
-        (function initJoystick() {
-          if (!isTouchDevice()) return;      // laptop + headset untouched
-          setJoystickVisible(true);
-          const zone = document.getElementById('joy-zone');
-          const knob = document.getElementById('joy-knob');
-          const MAXR = 45;
-
-          function setKnob(dx, dy) {
-            knob.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
-          }
-          function fromTouch(t) {
-            const r = zone.getBoundingClientRect();
-            let dx = t.clientX - (r.left + r.width / 2);
-            let dy = t.clientY - (r.top + r.height / 2);
-            const d = Math.hypot(dx, dy);
-            if (d > MAXR) { dx = dx / d * MAXR; dy = dy / d * MAXR; }
-            setKnob(dx, dy);
-            JOY.dx = dx / MAXR;
-            JOY.dy = dy / MAXR;
-          }
-          zone.addEventListener('touchstart', e => {
-            const t = e.changedTouches[0];
-            JOY.active = true; JOY.id = t.identifier;
-            fromTouch(t); e.preventDefault();
-          }, { passive: false });
-          zone.addEventListener('touchmove', e => {
-            for (const t of e.changedTouches) {
-              if (t.identifier === JOY.id) { fromTouch(t); break; }
-            }
-            e.preventDefault();
-          }, { passive: false });
-          function endTouch(e) {
-            for (const t of e.changedTouches) {
-              if (t.identifier === JOY.id) {
-                JOY.active = false; JOY.dx = 0; JOY.dy = 0; JOY.id = null;
-                setKnob(0, 0); break;
-              }
-            }
-          }
-          zone.addEventListener('touchend', endTouch);
-          zone.addEventListener('touchcancel', endTouch);
-        })();
-
-        /* Moves the rig each frame based on joystick input, relative to gaze. */
-        AFRAME.registerComponent('joystick-move', {
-          init: function () {
-            this.speed = 1.6;                 // metres per second
-            this.camEl = this.el.querySelector('[camera]');
-          },
-          tick: function (time, delta) {
-            if (!JOY.active || (JOY.dx === 0 && JOY.dy === 0)) return;
-            if (!this.camEl) return;
-            const dt = delta / 1000;
-            const yaw = this.camEl.object3D.rotation.y;
-            const fwd = -JOY.dy, strafe = JOY.dx;
-            const sin = Math.sin(yaw), cos = Math.cos(yaw);
-            const mx = (strafe * cos - fwd * sin) * this.speed * dt;
-            const mz = (strafe * sin + fwd * cos) * this.speed * dt;
-            const pos = this.el.object3D.position;
-            pos.x = Math.max(-6.4, Math.min(6.4, pos.x + mx));   // stay in the room
-            pos.z = Math.max(-4.4, Math.min(4.4, pos.z + mz));
-          }
-        });
       </script>
 
     </a-scene>
 
-    <!-- ============ MOBILE VIRTUAL JOYSTICK (touch devices only) ============
-         Hidden unless a touch screen is detected and we are not in an
-         immersive headset session. Laptop and VR are unaffected. -->
-    <div id="joy-zone" style="
-        display:none; position:fixed; left:22px; bottom:22px;
-        width:130px; height:130px; border-radius:50%;
-        background:rgba(11,28,34,0.55); border:2px solid rgba(42,111,133,0.9);
-        touch-action:none; z-index:9999; user-select:none;">
-      <div id="joy-knob" style="
-        position:absolute; left:50%; top:50%; width:56px; height:56px;
-        margin-left:-28px; margin-top:-28px; border-radius:50%;
-        background:rgba(127,233,255,0.85); pointer-events:none;"></div>
+    <!-- ============ MOBILE MOVEMENT PAD (touch devices only) ============
+         Four hold-to-move arrows in the lower-right corner.
+           up / down    = walk forward / backward
+           left / right = turn the view left / right
+         Tapping anywhere ELSE on the screen still selects patients, panel
+         buttons and tools exactly as before - these arrows never select.
+         Hidden on laptop and inside a VR headset session.               -->
+    <div id="move-pad" style="
+        display:none; position:fixed; right:18px; bottom:18px;
+        width:186px; height:186px; z-index:9999;
+        touch-action:none; user-select:none; -webkit-user-select:none;">
+      <button class="mv-btn" data-dir="fwd"   style="left:62px; top:0;">&#9650;</button>
+      <button class="mv-btn" data-dir="left"  style="left:0;    top:62px;">&#9664;</button>
+      <button class="mv-btn" data-dir="right" style="left:124px;top:62px;">&#9654;</button>
+      <button class="mv-btn" data-dir="back"  style="left:62px; top:124px;">&#9660;</button>
     </div>
-    <div id="joy-hint" style="
-        display:none; position:fixed; left:22px; bottom:158px;
-        color:#9fc3cd; font:12px/1.3 sans-serif; z-index:9999;
-        text-shadow:0 1px 3px #000;">drag to walk</div>
+    <style>
+      #move-pad .mv-btn {
+        position:absolute; width:62px; height:62px; padding:0;
+        border-radius:14px; border:2px solid rgba(42,111,133,0.95);
+        background:rgba(11,28,34,0.62); color:#7fe9ff;
+        font-size:24px; line-height:58px; text-align:center;
+        touch-action:none; -webkit-tap-highlight-color:transparent;
+      }
+      #move-pad .mv-btn.pressed {
+        background:rgba(127,233,255,0.30); color:#eafcff;
+      }
+    </style>
+    <script>
+      /* ================= MOBILE MOVEMENT PAD =================
+         Hold an arrow to move; release to stop. Runs only on touch devices,
+         so laptop and headset behaviour is untouched. This script sits AFTER
+         the pad markup so the buttons definitely exist when it runs.     */
+      function isTouchDevice() {
+        return ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+      }
+      function setPadVisible(v) {
+        const pad = document.getElementById('move-pad');
+        if (pad) pad.style.display = v ? 'block' : 'none';
+      }
+
+      // which directions are currently held down
+      const MOVE = { fwd: false, back: false, left: false, right: false };
+
+      (function initPad() {
+        if (!isTouchDevice()) return;          // laptop + VR unaffected
+        setPadVisible(true);
+
+        document.querySelectorAll('#move-pad .mv-btn').forEach(btn => {
+          const dir = btn.dataset.dir;
+          const press = e => {
+            MOVE[dir] = true;
+            btn.classList.add('pressed');
+            e.preventDefault();                // don't let it become a "select" tap
+            e.stopPropagation();
+          };
+          const release = e => {
+            MOVE[dir] = false;
+            btn.classList.remove('pressed');
+            if (e) { e.preventDefault(); e.stopPropagation(); }
+          };
+          btn.addEventListener('touchstart', press,  { passive: false });
+          btn.addEventListener('touchend',   release,{ passive: false });
+          btn.addEventListener('touchcancel',release,{ passive: false });
+          // mouse support too, harmless on touch screens
+          btn.addEventListener('mousedown',  press);
+          btn.addEventListener('mouseup',    release);
+          btn.addEventListener('mouseleave', release);
+        });
+
+        // safety: if the page loses focus mid-press, stop moving
+        window.addEventListener('blur', () => {
+          Object.keys(MOVE).forEach(k => MOVE[k] = false);
+          document.querySelectorAll('#move-pad .mv-btn')
+                  .forEach(b => b.classList.remove('pressed'));
+        });
+      })();
+
+      /* Drives the rig each frame: forward/back walk along the gaze direction,
+         left/right rotate the view. */
+      AFRAME.registerComponent('pad-move', {
+        init: function () {
+          this.speed = 1.7;                    // metres per second
+          this.turnSpeed = 75;                 // degrees per second
+          this.camEl = this.el.querySelector('[camera]');
+        },
+        tick: function (time, delta) {
+          if (!this.camEl) return;
+          const dt = delta / 1000;
+
+          // --- turning: rotate the whole rig so gaze and movement stay aligned
+          let turn = 0;
+          if (MOVE.left)  turn += 1;
+          if (MOVE.right) turn -= 1;
+          if (turn !== 0) {
+            this.el.object3D.rotation.y += turn * THREE.MathUtils.degToRad(this.turnSpeed) * dt;
+          }
+
+          // --- walking: forward is wherever the camera is actually pointing
+          let walk = 0;
+          if (MOVE.fwd)  walk += 1;
+          if (MOVE.back) walk -= 1;
+          if (walk !== 0) {
+            const yaw = this.el.object3D.rotation.y + this.camEl.object3D.rotation.y;
+            const pos = this.el.object3D.position;
+            const mx = -Math.sin(yaw) * walk * this.speed * dt;
+            const mz = -Math.cos(yaw) * walk * this.speed * dt;
+            pos.x = Math.max(-6.4, Math.min(6.4, pos.x + mx));   // stay in the room
+            pos.z = Math.max(-4.4, Math.min(4.4, pos.z + mz));
+          }
+        }
+      });
+    </script>
   </body>
 </html>
