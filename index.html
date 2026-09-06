@@ -162,9 +162,9 @@
       const panel = document.createElement('a-entity');
       panel.setAttribute('id', id);
       if (hudMode) {
-        // 0.30 made the text too small to read comfortably; 0.46 with a little
-        // more distance keeps the panel in view but legible.
-        const sc = 0.46;
+        // 0.30 was too small to read; 0.44 with a little extra distance keeps
+        // the panel comfortably in view but legible.
+        const sc = 0.44;
         panel.setAttribute('scale', sc + ' ' + sc + ' ' + sc);
         panel.setAttribute('position', '0 ' + (0.20 + (H * sc) / 2) + ' -0.25');
       } else {
@@ -255,61 +255,49 @@
     }
 
     /* =====================================================================
-       PHASE -1 — HOW TO PLAY (shown first, before the shift briefing)
+       PHASE 0 — WELCOME + HOW TO PLAY (single screen)
        ===================================================================== */
 
-    /* Show only the controls that apply to the device in hand, so the learner
-       reads three lines instead of nine. */
+    /* navigator.xr exists in every Chrome/Edge whether or not a headset is
+       attached, so it cannot be used as a test on its own. This asks the
+       browser whether an immersive session could actually start. */
+    let XR_AVAILABLE = false;
+    if (navigator.xr && navigator.xr.isSessionSupported) {
+      navigator.xr.isSessionSupported('immersive-vr')
+        .then(ok => { XR_AVAILABLE = !!ok; })
+        .catch(() => { XR_AVAILABLE = false; });
+    }
+
+    /* Show only the controls that apply to the device in hand. */
     function controlsText() {
       const touch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-      if (navigator.xr && !touch) {
-        // desktop browser that *could* enter VR - show both, briefly
-        return 'IN THE HEADSET: point with a controller, pull the trigger to select.\n' +
-               'Left thumbstick to walk.\n' +
-               'ON THIS SCREEN: click to select, arrow keys or WASD to walk.';
-      }
       if (touch) {
-        return 'Tap to select a patient, a button or an instrument.\n' +
-               'Use the arrows in the bottom-right corner to move and turn.\n' +
-               'Tilt your phone to look around.';
+        return 'CONTROLS: tap to select. Arrows in the bottom-right corner\n' +
+               'to move and turn. Tilt your phone to look around.';
       }
-      return 'Click to select a patient, a button or an instrument.\n' +
-             'Arrow keys or WASD to walk. Click and drag to look around.\n' +
-             'If you have a headset connected, the VR button is bottom-right.';
+      if (XR_AVAILABLE) {
+        return 'CONTROLS: point with a controller and pull the trigger to select.\n' +
+               'Left thumbstick to walk.';
+      }
+      return 'CONTROLS: click to select. Arrow keys or WASD to walk.\n' +
+             'Click and drag to look around.';
     }
 
-    function showInstructions() {
-      makePanel('panel-howto',
-        'HOW TO PLAY\n' +
-        '\n' +
-        controlsText() + '\n' +
-        '\n' +
-        'You are the doctor on duty. Three patients have arrived at once.\n' +
-        'Observe > decide who is first > triage > examine > diagnose >\n' +
-        'order > treat.\n' +
-        '\n' +
-        'Time is running. Patients get worse if you leave them.\n' +
-        'Your score and instructions appear in front of you at all times.\n' +
-        '\n' +
-        'This demo takes about 5-8 minutes.',
-        'hud',
-        [{ label: '>>> NEXT <<<', color: '#2a6f85', onClick: () => {
-            clearPanel('panel-howto');
-            showWelcome();
-          } }],
-        2.6, false);
-    }
-
-    /* =====================================================================
-       PHASE 0 — WELCOME
-       ===================================================================== */
     function showWelcome() {
       makePanel('panel-welcome',
         'GOOD EVENING, DOCTOR.\n' +
         'You are the Emergency Physician on duty tonight.\n' +
         'Three patients have just arrived in your ER.\n' +
-        'Assess them. Prioritize wisely. Act fast.\n' +
-        'Every second you delay, someone gets worse.',
+        '\n' +
+        controlsText() + '\n' +
+        '\n' +
+        'Observe > decide who is first > triage > examine >\n' +
+        'diagnose > order > treat.\n' +
+        '\n' +
+        'Time is running. Patients get worse if you leave them.\n' +
+        'Your score and instructions stay in front of you at all times.\n' +
+        '\n' +
+        'This demo takes about 5-8 minutes.',
         'hud',
         [{ label: '>>> BEGIN SHIFT <<<', color: '#1f6e2a', onClick: () => {
             AudioEngine.init();
@@ -321,7 +309,7 @@
             GAME.startTime = Date.now();
             updateHUD();
           } }],
-        2.3, false);
+        2.7, false);
     }
 
     /* =====================================================================
@@ -1216,7 +1204,7 @@
         updateHUD();
         setMessage('Welcome, Doctor.');
         buildFloorDetail();
-        setTimeout(showInstructions, 500);
+        setTimeout(showWelcome, 500);
       },
       tick: function (time, delta) {
         if (GAME.phase === 'WELCOME') return;
@@ -1452,7 +1440,7 @@
           <!-- Room-level panels (welcome / prioritization / results / debrief)
                are parented here so they pop up just above the status HUD and
                follow the doctor's view instead of sitting mid-room. -->
-          <a-entity id="hud-anchor" position="0 -0.24 -0.85" rotation="-12 0 0"></a-entity>
+          <a-entity id="hud-anchor" position="0 -0.24 -0.85" rotation="0 0 0"></a-entity>
 
           <!-- Desktop-click / mobile-tap reticle: same raycaster + click events as
                the VR laser controllers, but aimed by looking (mouse-drag or phone
